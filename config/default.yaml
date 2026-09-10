@@ -207,6 +207,60 @@ render:
   render_version: 11
   remotion_dir: remotion
   timeout_seconds: 1800
+  # Шаблон раскладки из templates/*.yaml. Свои шаблоны кладите в
+  # ~/.config/streamslice/templates или в каталог из templates_dir — они
+  # перекрывают встроенные по совпадению имени. См. docs/TEMPLATES.md
+  template: classic-split
+  templates_dir: null
+
+# Кроп вебки следует за лицом, а не за центром бокса вебки. Без этого в
+# крупных сценах лицо уезжает из кадра. Подробно: docs/MONTAGE.md
+face_tracking:
+  enabled: true
+  sample_fps: 4.0            # частота сэмплирования кадров для детектора
+  detect_width: 640          # до какой ширины уменьшать кадр перед детекцией
+  min_detect_width: 320      # мелкую вебку апскейлить до этой ширины
+  upscale: 2.0
+  score_threshold: 0.6
+  nms_threshold: 0.3
+  min_coverage: 0.4          # ниже — трек считается непригодным
+  max_gap_seconds: 1.0       # более длинные пропадания рвут трек
+  median_window: 5           # сглаживание: median → deadband → EMA → лимит скорости
+  deadband: 0.015            # микродвижения меньше порога камера игнорирует
+  ema_alpha: 0.25
+  max_velocity: 0.35         # доля кадра в секунду
+  # Если в заданном боксе вебки лица нет, искать по всему кадру: бокс
+  # зависит от стримера и легко оказывается неверным.
+  search_full_frame: true
+  model_path: null           # null → модель YuNet из пакета
+
+# Монтаж: без него клип — один непрерывный дубль со статичной раскладкой.
+# Каждая стадия выключается отдельно. Подробно: docs/MONTAGE.md
+montage:
+  enabled: true
+  # Вырезание паузы (jump cut)
+  trim_silence: true
+  max_silence_seconds: 1.2      # провал длиннее этого — кандидат на вырезание
+  silence_padding_seconds: 0.25 # сколько оставить с каждого края, чтобы не резать слова
+  protect_head_seconds: 2.0     # начало не режется: там хук
+  protect_tail_seconds: 1.5     # конец не режется: там развязка
+  max_removed_ratio: 0.25       # вырезать больше — ролик рассыпается
+  # Переключение раскладки
+  min_segment_seconds: 1.5      # короче — склеивается с соседом, иначе мигание
+  event_layout: split           # раскладка в окне подтверждённого события
+  # Punch-in зумы на пиках
+  punch_in: true
+  punch_zoom: 1.10
+  punch_seconds: 1.2
+  punch_cooldown_seconds: 6.0
+  max_punches: 4
+  # Акцент на первых секундах
+  hook_punch: true
+  hook_seconds: 1.5
+  hook_zoom: 1.06
+  # Альтернатива вырезанию: ускорять паузы вместо их удаления
+  speed_up_silence: false
+  silence_speed: 1.6
 
 output:
   root: ~/streamslice/output

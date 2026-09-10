@@ -8,7 +8,7 @@ from streamslice.identity import resolve_creator_identity
 class IdentityTests(unittest.TestCase):
     def test_t2x2_profile_uses_specific_mentions(self) -> None:
         config = {
-            "sync": {"local_dir": "/home/yuwye/streams"},
+            "sync": {"local_dir": "/srv/streams"},
             "identity": {
                 "model_normalize": False,
                 "profiles": {
@@ -24,7 +24,7 @@ class IdentityTests(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as directory:
             identity = resolve_creator_identity(
-                Path("/home/yuwye/streams/t2x2/session/chunk_1.mp4"),
+                Path("/srv/streams/t2x2/session/chunk_1.mp4"),
                 config=config,
                 client=object(),
                 work_dir=Path(directory),

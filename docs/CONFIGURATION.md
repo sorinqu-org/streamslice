@@ -6,7 +6,7 @@
 
 ## `paths` / `project_path`
 
-Отдельной секции `paths` в конфиге нет. Вместо неё большинство путей в `config/default.yaml` — абсолютные (`/home/yuwye/...`, `/opt/...`). Часть путей — относительные к репозиторию (`sync.log_file: .work/rclone.log`, `render.remotion_dir: remotion`) и резолвятся через `config.project_path(config, value)`:
+Отдельной секции `paths` в конфиге нет. Пути в `config/default.yaml` заданы относительно домашнего каталога (`~/streams`, `~/streamslice/output`) — под конкретную машину их переопределяют в `config/local-render.yaml` или `config/remote.yaml`. Часть путей — относительные к репозиторию (`sync.log_file: .work/rclone.log`, `render.remotion_dir: remotion`). Все они резолвятся через `config.project_path(config, value)`, который раскрывает `~` и достраивает относительные пути от корня репозитория:
 
 ```python
 def project_path(config, value):
@@ -101,7 +101,7 @@ proxy, models, sync, transcription, audio_analysis, selection, layout, subtitles
 |---|---|---|---|
 | `enabled` | bool | `true` | Включает команды `sync`/`run`/`run-latest` |
 | `remote` | str | `gdrive:Twitch` | rclone remote с записями стримов |
-| `local_dir` | str | `/home/yuwye/streams` | Куда скачиваются файлы |
+| `local_dir` | str | `~/streams` | Куда скачиваются файлы |
 | `clean_before_copy` | bool | `true` | Требует `--confirm-cleanup`; удаляет старые видео/кэш в `local_dir` перед копированием |
 | `video_extensions` | list[str] | `[.mp4, .mkv, .mov, .webm]` | Какие файлы считаются видео при очистке |
 | `cache_names` | list[str] | `[.cache, .pipeline-cache]` | Какие каталоги считаются кэшем при очистке |
@@ -255,7 +255,21 @@ proxy, models, sync, transcription, audio_analysis, selection, layout, subtitles
 | `enabled` | bool | `true` | — | Включает трекинг; `false` — крoп остаётся на геометрии из шаблона/конфига |
 | `sample_fps` | float | `4.0` | 2–8 | Частота выборки кадров для детектора YuNet. Выше — точнее и медленнее |
 | `min_coverage` | float | `0.4` | 0–1 | Минимальная доля кадров с найденным лицом; ниже — трек считается неудачным и отбрасывается (`FaceTrack.is_usable`) |
+| `search_full_frame` | bool | `true` | — | Если в боксе вебки лица нет, искать по всему кадру и кадрировать по найденному лицу. См. подраздел ниже |
 | `model_path` | str | путь к `assets/models/face_detection_yunet_2023mar.onnx` | — | Путь к ONNX-модели YuNet |
+
+#### Когда бокс вебки задан неверно
+
+`layout.webcam` — догадка, верная для одного стримера и неверная для другого. Когда бокс указывает не туда, полоса вебки рендерится вообще без лица.
+
+При `search_full_frame: true` рендер делает вторую попытку по всему кадру и, если лицо нашлось, считает бокс неверным и кадрирует по лицу, а не по боксу. В журнал идёт `WARNING` с найденными координатами:
+
+```
+Configured webcam box looks wrong: face found in the full frame instead
+(coverage=0.87, bbox=(0.413, 0.19, 0.158, 0.39))
+```
+
+Это страховка, а не замена настройке: увидели предупреждение — пропишите верный `layout.webcam` для этого канала или почините `layout_analysis`, чтобы он отдавал `webcam_crop` поклипно. Поиск по всему кадру стоит одного дополнительного прохода детектора и может поймать лицо в игре вместо стримера.
 | `detect_width` | int | `640` | 320–960 | Ширина кадра, подаваемого в детектор (после кропа под регион поиска) |
 | `min_detect_width` | int | `320` | — | Если декодированная ширина региона меньше — регион апскейлится перед детекцией |
 | `score_threshold` | float | `0.6` | 0–1 | Порог уверенности YuNet |
@@ -343,7 +357,7 @@ proxy, models, sync, transcription, audio_analysis, selection, layout, subtitles
 | `enabled` | bool | `false` | Требуется `true` для команды `render-queue` |
 | `remote_jobs` | str | `gdrive:StreamSlice/render-queue` | rclone remote с входящими заданиями |
 | `remote_results` | str | `gdrive:StreamSlice/render-results` | rclone remote для результатов |
-| `local_root` | str | `/home/yuwye/tiktoks/render-queue` | Локальный рабочий каталог очереди (`incoming/`) |
+| `local_root` | str | `~/streamslice/render-queue` | Локальный рабочий каталог очереди (`incoming/`) |
 | `rclone_config` | str | путь к `rclone.conf` | Явный путь к конфигу rclone, если не системный |
 | `transfers` / `checkers` | int | `4` / `8` | Параллелизм rclone для очереди |
 | `drive_chunk_size` | str | `64Mi` | Размер чанка загрузки на Google Drive |
@@ -371,5 +385,5 @@ proxy, models, sync, transcription, audio_analysis, selection, layout, subtitles
 
 | Ключ | Тип | По умолчанию | Что делает |
 |---|---|---|---|
-| `root` | str | `/home/yuwye/tiktoks/output` | Куда складываются финальные `manifest.json` и `clip-XX/` |
+| `root` | str | `~/streamslice/output` | Куда складываются финальные `manifest.json` и `clip-XX/` |
 | `keep_intermediates` | bool | `true` (`false` на хосте) | Если `false` — после завершения `process_video` удаляется весь `runtime.work_dir/<stream_id>` и временный каталог Remotion `public/jobs/<stream_id>` |

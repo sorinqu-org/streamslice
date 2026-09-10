@@ -55,16 +55,22 @@ MAX_FOCUS_KEYFRAMES = 24
 FOCUS_TOLERANCE = 0.004
 
 
-def _escape_filter_path(path: Path | str) -> str:
-    """Escape a path so it survives being embedded in a filtergraph argument."""
-    text = str(Path(path).resolve())
-    return (
-        text.replace("\\", "/")
-        .replace(":", "\\:")
-        .replace("'", "'\\''")
-        .replace("[", "\\[")
-        .replace("]", "\\]")
-    )
+def _escape_filter_value(value: str) -> str:
+    """Escape one filter argument value for embedding in a filtergraph.
+
+    FFmpeg unescapes a filtergraph in layers, so a literal character has to
+    survive both the filtergraph parser and the filter's own argument parser.
+    In practice that means backslash-escaping the separators of each layer.
+
+    Prefer keeping user-controlled paths out of the filtergraph entirely (see
+    :func:`render_with_ffmpeg`, which runs FFmpeg with ``cwd`` set to the clip
+    directory and refers to ``subtitles.ass`` by its bare name). This helper is
+    the fallback for the cases where that is not possible.
+    """
+    escaped = value
+    for char in ("\\", "'", ":", ",", ";", "[", "]", "="):
+        escaped = escaped.replace(char, "\\" + char)
+    return escaped
 
 
 def _even(value: float, minimum: int = 2) -> int:
@@ -503,11 +509,12 @@ def _atempo_chain(speed: float) -> str:
 def build_ffmpeg_filtergraph(
     *,
     props: dict[str, Any],
-    ass_path: Path,
+    ass_name: str,
     source_duration: float,
     template: Template,
     plan: EditPlan,
     face_track: FaceTrack | None = None,
+    webcam_region_override: dict[str, float] | None = None,
     source_size: tuple[int, int] = (1920, 1080),
     has_audio: bool = True,
 ) -> str:
@@ -515,6 +522,10 @@ def build_ffmpeg_filtergraph(
     source_w, source_h = source_size
     recommendation = dict(props.get("layoutRecommendation") or {})
     layout_cfg = dict(props.get("layout") or {})
+    if webcam_region_override is not None:
+        recommendation["webcam_crop"] = dict(webcam_region_override)
+        recommendation.pop("webcam_box", None)
+        layout_cfg["webcam"] = dict(webcam_region_override)
     masks = list(props.get("overlayMasks") or [])
 
     gameplay_points = _extract_focal_trajectory(recommendation, source_duration)
@@ -620,8 +631,7 @@ def build_ffmpeg_filtergraph(
             joined = "".join(f"[{label}]" for label in concat_labels)
             filters.append(f"{joined}concat=n={len(concat_labels)}:v=1:a=0[vcat]")
 
-    escaped_ass = _escape_filter_path(ass_path)
-    filters.append(f"[vcat]subtitles=filename='{escaped_ass}'[outv]")
+    filters.append(f"[vcat]subtitles=filename='{_escape_filter_value(ass_name)}'[outv]")
     return ";".join(filters)
 
 
@@ -703,29 +713,16 @@ def resolve_template(props: dict[str, Any], config: dict[str, Any]) -> Template:
     return load_template("classic-split", config)
 
 
-def resolve_face_track(
+def _try_track(
     source_clip: Path,
     *,
-    props: dict[str, Any],
     config: dict[str, Any],
+    region: dict[str, float] | None,
     duration: float,
-    cache_dir: Path | None = None,
+    cache_path: Path | None,
 ) -> FaceTrack | None:
-    """Track the streamer's face inside the webcam region, or return ``None``.
-
-    Face tracking is an enrichment pass: a missing model, an unreadable clip or a
-    scene with no visible face must fall back to the configured geometry rather
-    than fail the render.
-    """
-    settings = config.get("face_tracking") or {}
-    if not settings.get("enabled", True):
-        return None
-    recommendation = dict(props.get("layoutRecommendation") or {})
-    layout_cfg = dict(props.get("layout") or {})
-    region = webcam_region(recommendation, layout_cfg)
-    cache_path = (cache_dir / "face-track.json") if cache_dir else None
     try:
-        track = track_face(
+        return track_face(
             source_clip,
             config=config,
             region=region,
@@ -735,22 +732,96 @@ def resolve_face_track(
     except Exception:
         LOGGER.warning("Face tracking failed; keeping configured framing", exc_info=True)
         return None
+
+
+def resolve_face_track(
+    source_clip: Path,
+    *,
+    props: dict[str, Any],
+    config: dict[str, Any],
+    duration: float,
+    cache_dir: Path | None = None,
+) -> tuple[FaceTrack | None, dict[str, float] | None]:
+    """Locate the streamer's face and, if needed, correct the webcam region.
+
+    Returns the track plus an optional replacement for the webcam region. The
+    configured webcam box is per-stream guesswork: pointed at the wrong corner it
+    yields a band with no face in it at all. So when no face is found inside the
+    box but one is clearly visible in the frame, the box is treated as wrong and
+    the whole frame becomes the search area, letting the face-centred crop do the
+    framing.
+
+    Face tracking stays an enrichment pass: a missing model, an unreadable clip
+    or a scene with nobody on camera falls back to the configured geometry
+    instead of failing the render.
+    """
+    settings = config.get("face_tracking") or {}
+    if not settings.get("enabled", True):
+        return None, None
+    recommendation = dict(props.get("layoutRecommendation") or {})
+    layout_cfg = dict(props.get("layout") or {})
+    region = webcam_region(recommendation, layout_cfg)
     minimum = _finite(settings.get("min_coverage"), 0.4)
-    if not track.is_usable(minimum):
+
+    track = _try_track(
+        source_clip,
+        config=config,
+        region=region,
+        duration=duration,
+        cache_path=(cache_dir / "face-track.json") if cache_dir else None,
+    )
+    if track is not None and track.is_usable(minimum):
         LOGGER.info(
-            "Face track unusable (detector=%s coverage=%.2f < %.2f); keeping configured framing",
+            "Face track: detector=%s coverage=%.2f samples=%s",
             track.detector,
             track.coverage,
+            len(track.samples),
+        )
+        return track, None
+
+    in_box = track.coverage if track is not None else 0.0
+    is_full_frame = (
+        region["width"] > 0.99
+        and region["height"] > 0.99
+        and region["x"] < 0.01
+        and region["y"] < 0.01
+    )
+    if not settings.get("search_full_frame", True) or is_full_frame:
+        LOGGER.info(
+            "Face track unusable (coverage=%.2f < %.2f); keeping configured framing",
+            in_box,
             minimum,
         )
-        return None
+        return None, None
+
     LOGGER.info(
-        "Face track: detector=%s coverage=%.2f samples=%s",
-        track.detector,
-        track.coverage,
-        len(track.samples),
+        "No face inside the configured webcam box (coverage=%.2f < %.2f); "
+        "searching the whole frame",
+        in_box,
+        minimum,
     )
-    return track
+    wide = _try_track(
+        source_clip,
+        config=config,
+        region=None,
+        duration=duration,
+        cache_path=(cache_dir / "face-track-full.json") if cache_dir else None,
+    )
+    if wide is None or not wide.is_usable(minimum):
+        LOGGER.info(
+            "No usable face in the whole frame either (coverage=%.2f); keeping configured framing",
+            wide.coverage if wide is not None else 0.0,
+        )
+        return None, None
+    box = wide.max_bbox()
+    LOGGER.warning(
+        "Configured webcam box looks wrong: face found in the full frame instead "
+        "(coverage=%.2f, bbox=%s). Framing on the face; fix layout.webcam or "
+        "layout_analysis to silence this.",
+        wide.coverage,
+        None if box is None else tuple(round(value, 3) for value in box),
+    )
+    return wide, dict(FULL_FRAME)
 
 
 def stored_edit_plan(props: dict[str, Any], duration: float) -> EditPlan:
@@ -831,7 +902,7 @@ def render_with_ffmpeg(
         duration = _finite(props.get("durationInSeconds"), 30.0)
 
     template = resolve_template(props, config)
-    face_track = resolve_face_track(
+    face_track, webcam_override = resolve_face_track(
         source_clip,
         props=props,
         config=config,
@@ -854,13 +925,22 @@ def render_with_ffmpeg(
         encoding="utf-8",
     )
 
+    # The subtitles filter takes its path inside the filtergraph, where FFmpeg's
+    # own escaping rules apply. Rather than escaping an arbitrary absolute path
+    # correctly, FFmpeg runs with cwd set to the clip directory so the file can be
+    # named directly. Both names are ours, so neither needs escaping.
+    work_dir = ass_path.parent
+    source_arg = source_clip.name if source_clip.parent == work_dir else str(source_clip)
+    output_arg = output_path.name if output_path.parent == work_dir else str(output_path)
+
     filtergraph = build_ffmpeg_filtergraph(
         props=props,
-        ass_path=ass_path,
+        ass_name=ass_path.name,
         source_duration=duration,
         template=template,
         plan=plan,
         face_track=face_track,
+        webcam_region_override=webcam_override,
         source_size=(source_w, source_h),
         has_audio=has_audio,
     )
@@ -880,7 +960,7 @@ def render_with_ffmpeg(
             "error",
             "-y",
             "-i",
-            str(source_clip),
+            source_arg,
             "-filter_complex",
             filtergraph,
             "-map",
@@ -889,7 +969,7 @@ def render_with_ffmpeg(
         if has_audio:
             args += ["-map", "[acat]", "-c:a", "aac", "-b:a", "192k"]
         args += video_args
-        args += ["-r", str(fps), "-movflags", "+faststart", str(output_path)]
+        args += ["-r", str(fps), "-movflags", "+faststart", output_arg]
         return args
 
     gpu_args = [
@@ -917,10 +997,10 @@ def render_with_ffmpeg(
 
     LOGGER.info("Starting FFmpeg render -> %s", output_path.name)
     try:
-        run(command(gpu_args), timeout=timeout_seconds, capture=False)
+        run(command(gpu_args), cwd=work_dir, timeout=timeout_seconds, capture=False)
     except Exception as exc:
         LOGGER.warning("GPU render failed (%s); retrying on CPU libx264", exc)
-        run(command(cpu_args), timeout=timeout_seconds, capture=False)
+        run(command(cpu_args), cwd=work_dir, timeout=timeout_seconds, capture=False)
 
     out_info = probe(output_path)
     out_streams = out_info.get("streams", [])
