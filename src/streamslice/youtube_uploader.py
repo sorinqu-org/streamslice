@@ -12,6 +12,7 @@ from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import Page, async_playwright
 
 from .audio_cleanup import remove_music_if_blocked
+from .youtube_errors import YoutubeAuthRequired, YoutubeUploadError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -64,14 +65,6 @@ SELECTOR_PUBLISH_BUTTON = (
     '[aria-label*="Publish" i], [aria-label*="Опубликовать" i], '
     '[aria-label*="Save" i], [aria-label*="Сохранить" i]'
 )
-
-
-class YoutubeAuthRequired(Exception):
-    """Raised when YouTube authentication cookies are missing, invalid, or expired."""
-
-
-class YoutubeUploadError(Exception):
-    """Raised when an error occurs during YouTube upload process."""
 
 
 def get_cookies_path(config: dict[str, Any] | None = None) -> Path:

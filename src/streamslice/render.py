@@ -257,7 +257,7 @@ def render_prepared_clip(
     config: dict[str, Any],
 ) -> dict[str, Any]:
     clip_dir = clip_dir.expanduser().resolve()
-    LOGGER.info("[%s] [%s] Подготовка и старт рендера клипа...", job_id, clip_dir.name)
+    LOGGER.info("[%s] [%s] Preparing clip render", job_id, clip_dir.name)
     source_clip = clip_dir / "source.mp4"
     props_path = clip_dir / "remotion-props.json"
     if not source_clip.is_file() or not props_path.is_file():
@@ -307,7 +307,7 @@ def render_prepared_clip(
         info = _render_with_props(local_props, output_path, config)
 
     LOGGER.info(
-        "[%s] [%s] Рендер клипа успешно завершен -> %s",
+        "[%s] [%s] Clip render finished -> %s",
         job_id,
         clip_dir.name,
         output_path.name,

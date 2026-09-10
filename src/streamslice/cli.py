@@ -10,12 +10,7 @@ from .config import ConfigError, load_config
 from .pipeline import doctor, process_downloaded, process_video
 from .render_queue import render_job, sync_and_render_queue
 from .sync import sync_latest_chunks, sync_streams
-from .youtube_api_uploader import (
-    YoutubeAuthRequired,
-    YoutubeUploadError,
-    authorize_all_projects_interactive,
-    upload_shorts_api,
-)
+from .youtube_errors import YoutubeAuthRequired, YoutubeUploadError
 
 _DEFAULT_CONFIG = str(
     Path(__file__).resolve().parent.parent.parent / "config" / "default.yaml"
@@ -90,6 +85,11 @@ def main(argv: list[str] | None = None) -> int:
             for output in sync_and_render_queue(config):
                 print(output)
         elif args.command == "youtube-upload":
+            # Imported here, not at module scope: the Google API client is only
+            # needed to upload, and the host that merely queues jobs does not
+            # install it. A top-level import would break every other command.
+            from .youtube_api_uploader import upload_shorts_api
+
             video_file = Path(args.video).expanduser().resolve()
             meta_file = Path(args.metadata).expanduser().resolve()
             if not video_file.is_file():
@@ -105,6 +105,8 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(f"Uploaded: {url}")
         elif args.command == "youtube-login":
+            from .youtube_api_uploader import authorize_all_projects_interactive
+
             authorize_all_projects_interactive()
         return 0
     except YoutubeAuthRequired as exc:

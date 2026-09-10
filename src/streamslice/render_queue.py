@@ -20,13 +20,16 @@ from .process import ProcessError, require_binary, run
 from .render import render_prepared_clip
 from .session_batcher import group_jobs_into_batches
 from .super_curator import select_top_clips
+from .youtube_errors import YoutubeAuthRequired, YoutubeUploadError
 
 try:
-    from .youtube_api_uploader import YoutubeAuthRequired, YoutubeUploadError, upload_shorts_api
+    from .youtube_api_uploader import upload_shorts_api
 except ImportError:
-    YoutubeAuthRequired = Exception  # type: ignore
-    YoutubeUploadError = Exception    # type: ignore
-    upload_shorts_api = None          # type: ignore
+    # The host queues jobs without the Google API client installed; uploading is
+    # the render machine's job. Aliasing the exceptions to Exception here (as an
+    # earlier version did) made every `except YoutubeAuthRequired` catch
+    # everything, so they now come from a dependency-free module instead.
+    upload_shorts_api = None  # type: ignore[assignment]
 
 
 LOGGER = logging.getLogger(__name__)

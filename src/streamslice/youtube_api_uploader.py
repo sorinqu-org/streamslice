@@ -14,6 +14,14 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
 from .metadata import format_youtube_shorts_title, format_youtube_tags
+from .youtube_errors import YoutubeAuthRequired, YoutubeUploadError
+
+__all__ = [
+    "YoutubeAuthRequired",
+    "YoutubeUploadError",
+    "authorize_all_projects_interactive",
+    "upload_shorts_api",
+]
 
 LOGGER = logging.getLogger(__name__)
 
@@ -25,14 +33,6 @@ SCOPES = [
 DEFAULT_CONFIG_DIR = Path.home() / ".config" / "streamslice"
 DEFAULT_SECRETS_PATH = DEFAULT_CONFIG_DIR / "client_secrets.json"
 DEFAULT_TOKEN_PATH = DEFAULT_CONFIG_DIR / "youtube_token.json"
-
-
-class YoutubeAuthRequired(Exception):
-    """Raised when OAuth client secrets or authorization token is missing."""
-
-
-class YoutubeUploadError(Exception):
-    """Raised when an error occurs during YouTube API upload."""
 
 
 def get_secrets_pool() -> list[tuple[Path, Path]]:

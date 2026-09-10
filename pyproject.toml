@@ -9,11 +9,15 @@ description = "Automated Twitch to TikTok/Reels/Shorts production pipeline"
 requires-python = ">=3.11"
 dependencies = [
   "numpy>=2.0",
-  "opencv-python-headless>=4.10",
   "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
+# OpenCV is only needed to track faces, which only the rendering machine does.
+# Without it the pipeline still runs: face tracking reports detector="none" and
+# framing falls back to the configured geometry. The host therefore installs the
+# core dependencies only.
+render = ["opencv-python-headless>=4.10"]
 audio = ["librosa>=0.11"]
 dev = ["pytest>=8.0", "ruff>=0.9"]
 
