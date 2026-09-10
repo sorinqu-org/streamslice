@@ -1,0 +1,58 @@
+# Face-only layout: fullscreen webcam with a blurred, scaled-up background
+# fill instead of a hard crop. This avoids stretching the tiny real-world
+# webcam source (~504x282px) past a readable resolution: blur_fill sidesteps
+# the upscale-mush problem entirely by using contain + blurred backdrop.
+name: reaction-cam
+description: >
+  Fullscreen webcam reaction shot with a blurred background fill. Use when
+  the whole clip is the streamer's face/reaction and gameplay is irrelevant.
+
+canvas:
+  width: 1080
+  height: 1920
+  fps: 60
+
+layouts:
+  split:
+    bands:
+      - source: webcam
+        height: 1.0
+        fit: blur_fill
+        align_x: 0.5
+        align_y: 0.40
+        zoom: 1.0
+        track: true
+        # blur_fill is the fallback path itself, but we still cap upscale
+        # of the sharp foreground layer at a value that stays watchable.
+        max_upscale: 2.0
+        divider_px: 0
+        divider_color: "#000000"
+
+  webcam_full:
+    bands:
+      - source: webcam
+        height: 1.0
+        fit: blur_fill
+        align_x: 0.5
+        align_y: 0.40
+        zoom: 1.0
+        track: true
+        max_upscale: 2.0
+        divider_px: 0
+        divider_color: "#000000"
+
+  gameplay_full:
+    bands:
+      - source: gameplay
+        height: 1.0
+        fit: cover
+        align_x: 0.5
+        align_y: 0.5
+        zoom: 1.0
+        track: true
+        max_upscale: 2.5
+        divider_px: 0
+        divider_color: "#000000"
+
+subtitles: {}
+motion: {}

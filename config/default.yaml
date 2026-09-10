@@ -1,0 +1,236 @@
+# Базовый конфиг. Не храните здесь секреты: файл лежит в репозитории.
+# Ключи берутся из переменных окружения (см. api_key_env), пути под конкретную
+# машину задавайте в своём config/local-render.yaml или config/remote.yaml.
+# Полный справочник ключей: docs/CONFIGURATION.md
+
+# Доступ к Gemini идёт через локальный CLIProxyAPI (OAuth), а не по API-ключу
+# напрямую. Пути ниже переопределите под свою машину.
+proxy:
+  base_url: http://127.0.0.1:8081/v1
+  api_key_env: CLIPROXY_API_KEY
+  binary: ~/CLIProxyAPI/cli-proxy-api
+  config: ~/CLIProxyAPI/config.yaml
+  working_dir: ~/CLIProxyAPI
+  log_file: ~/CLIProxyAPI/proxy.log
+  startup_timeout_seconds: 10
+
+# Маршрутизация моделей по провайдерам. Этап из секции models переключается
+# именем модели, например "gemini-3.8-flash-high".
+providers:
+  cliproxy:
+    base_url: http://127.0.0.1:8081/v1
+    api_key_env: CLIPROXY_API_KEY
+
+models:
+  transcription: gemini-3.8-flash-high
+  analysis: gemini-3.8-flash-high
+  curator: gemini-3.8-flash-high
+  metadata: gemini-3.8-flash-high
+  overlay_detection: gemini-3.8-flash-high
+
+identity:
+  model_normalize: true
+  profiles:
+    t2x2:
+      twitch_login: t2x2
+      display_name: t2x2
+      aliases: [t2x2, Тоха, Антон]
+      preferred_mentions: [t2x2, Тоха]
+      real_name: Антон
+      source_url: https://www.twitch.tv/t2x2
+      character_lore: >
+        t2x2 (Антон, Тоха) — эмоциональный, саркастичный и самоироничный стример. 
+        Фирменный стиль и то, что обожает его аудитория:
+        1. Сгорание, крики, тильт и яростные споры со зрителями / чатом / донатерами.
+        2. Лудомания, абсурдные споры, безумные обещания и нелепые пари.
+        3. Неожиданные рофлы, жесткий троллинг донатеров, абсурдные рассуждения и черный юмор.
+        4. Эпичные фейлы в играх, скримеры и моменты мгновенной кармы.
+        5. Дурацкие ситуации с модераторами (бан за компанию, непонимание шуток).
+        Любой момент, где Тоха выходит на эмоции, токсичит по-доброму, выдает базу или кринжует — это 100% вирусный материал.
+    stintik:
+      twitch_login: stintik
+      display_name: stint
+      aliases: [stint, stintik, Стинт, Максим]
+      preferred_mentions: [Стинт, stint]
+      real_name: Максим
+      source_url: https://www.twitch.tv/stintik
+      character_lore: >
+        Стинт (stintik, Максим) — ироничный, харизматичный стример и музыкант.
+        Фирменный стиль и триггеры аудитории:
+        1. Острый постироничный юмор, рофлы, сарказм и кринж-моменты.
+        2. Музыкальные темы, фристайлы, треки, пародии и реакции на музыку/тиктоки.
+        3. Нелепые и смешные ситуации в кооперативных играх и инди-хоррорах.
+        4. Неожиданные панчлайны, смех, дурачество и взаимодействие с чатом.
+    mazellovvv:
+      twitch_login: mazellovvv
+      display_name: mazellovvv
+      aliases: [mazellovvv, Мазелов, Мазеллов, Илья]
+      preferred_mentions: [Мазелов, mazellovvv]
+      real_name: Илья
+      source_url: https://www.twitch.tv/mazellovvv
+      character_lore: >
+        Мазелов (mazellovvv, Илья Коряков) — рэпер, баттл-рэпер и топовый стример.
+        Фирменный стиль и триггеры аудитории:
+        1. Жесткие панчи, рифмы на ходу, рэп-рофлы и шутки про нос/внешку.
+        2. Сгорания, громкие эмоциональные крики, рейдж-квиты и тильт в играх (CS2, хорроры, викторины).
+        3. Просмотр тиктоков, шоу, жесткие реакции на контент и угарные споры с донатерами.
+        4. Моменты абсурдного юмора, неловкие ситуации и самоирония.
+
+sync:
+  enabled: true
+  remote: gdrive:Twitch
+  local_dir: ~/streams
+  clean_before_copy: true
+  video_extensions: [.mp4, .mkv, .mov, .webm]
+  cache_names: [.cache, .pipeline-cache]
+  transfers: 2
+  checkers: 4
+  multi_thread_streams: 8
+  multi_thread_chunk_size: 16Mi
+  log_file: .work/rclone.log
+
+transcription:
+  language: ru
+  segment_seconds: 240
+  overlap_seconds: 2
+  audio_bitrate: 48k
+  sample_rate: 16000
+  parallel_requests: 2
+  request_timeout_seconds: 300
+  minimum_coverage_ratio: 0.35
+
+audio_analysis:
+  sample_rate: 16000
+  window_seconds: 0.5
+  peak_z_score: 1.35
+  merge_distance_seconds: 4
+  max_peaks: 100
+  use_librosa_if_available: true
+
+overlay_cleanup:
+  enabled: true
+  sample_positions: [0.12, 0.50, 0.88]
+  min_confidence: 0.65
+  max_boxes: 8
+  padding: 0.012
+  blur_px: 28
+
+selection:
+  analysis_window_seconds: 600
+  analysis_overlap_seconds: 60
+  parallel_requests: 4
+  min_duration_seconds: 20
+  max_duration_seconds: 90
+  pre_context_min_seconds: 5
+  pre_context_max_seconds: 15
+  post_context_min_seconds: 5
+  post_context_max_seconds: 10
+  final_count: 2
+  max_candidates_for_curator: 60
+  strict_context: true
+  min_context_score: 5.5
+  min_quality_score: 6.0
+  context_review_limit: 30
+  context_parallel_requests: 3
+  allow_fewer_if_context_weak: false
+
+layout:
+  webcam:
+    x: 0.738
+    y: 0.739
+    width: 0.262
+    height: 0.261
+  webcam_full:
+    x: 0.780
+    y: 0.740
+    width: 0.220
+    height: 0.260
+  gameplay:
+    x: 0.0
+    y: 0.0
+    width: 0.738
+    height: 1.0
+  split_webcam_height: 0.38
+  split_gameplay_height: 0.62
+  fullscreen_emotion_threshold: 8.5
+  webcam_detection_min_confidence: 0.75
+  zoom_scale: 1.28
+  default_focus_x: 0.50
+  default_focus_y: 0.50
+
+subtitles:
+  font_family: Montserrat
+  font_size: 92
+  primary_color: "#FFE815"
+  active_color: "#FFE815"
+  outline_color: "#000000"
+  outline_width: 14
+  shadow_blur: 18
+  words_per_group: 1
+  mask_profanity: true
+
+queue:
+  enabled: false
+  remote_jobs: gdrive:StreamSlice/render-queue
+  remote_results: gdrive:StreamSlice/render-results
+  local_root: ~/streamslice/render-queue
+  rclone_config: ~/.config/rclone/rclone.conf
+  transfers: 4
+  checkers: 8
+  drive_chunk_size: 64Mi
+  max_parallel_renders: 3
+  max_parallel_jobs: 1
+  sync_timeout_seconds: 7200
+  batch_window_minutes: 30
+  super_curator_enabled: true
+  max_batch_clips: 3
+  min_batch_clips: 2
+  visual_review_enabled: true
+
+render:
+  enabled: true
+  engine: ffmpeg
+  width: 1080
+  height: 1920
+  fps: 60
+  codec: h264
+  crf: 18
+  scale: 1.0
+  remotion_fps: 60
+  upscale_encoder: h264_nvenc
+  concurrency: 4
+  chromium_executable: /usr/bin/google-chrome-stable
+  hardware_acceleration: required
+  offthread_video_threads: 4
+  gl_renderer: angle-egl
+  video_bitrate: 8M
+  render_version: 11
+  remotion_dir: remotion
+  timeout_seconds: 1800
+
+output:
+  root: ~/streamslice/output
+  keep_intermediates: true
+
+youtube:
+  auto_upload: true
+  interval_minutes: 12
+  client_secrets_file: ~/.config/streamslice/client_secrets.json
+  token_file: ~/.config/streamslice/youtube_token.json
+  visibility: public
+  not_made_for_kids: true
+  contains_ai: false
+  paid_promotion: false
+  standard_license: true
+  allow_embedding: true
+  publish_to_feed: true
+  auto_remove_copyright_music: true
+
+runtime:
+  work_dir: .work
+  retries: 8
+  retry_initial_seconds: 2
+  retry_max_seconds: 30
+  ffmpeg_preset: veryfast
+  ffmpeg_crf: 18
+  duration_tolerance_seconds: 0.35

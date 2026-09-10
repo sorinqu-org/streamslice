@@ -1,0 +1,40 @@
+extends: default.yaml
+
+proxy:
+  base_url: http://127.0.0.1:8081/v1
+  binary: /opt/cliproxy/cli-proxy-api
+  config: /opt/cliproxy/config.yaml
+  working_dir: /opt/cliproxy
+  log_file: /var/log/cliproxy/proxy.log
+
+sync:
+  enabled: false
+  local_dir: /root/twitch-downloader/downloads
+
+queue:
+  enabled: true
+  remote_jobs: gdrive:StreamSlice/render-queue
+  remote_results: gdrive:StreamSlice/render-results
+  local_root: /var/lib/streamslice/render-queue
+  rclone_config: /root/.config/rclone/rclone.conf
+  transfers: 2
+  checkers: 4
+  max_parallel_renders: 1
+  max_parallel_jobs: 1
+  sync_timeout_seconds: 14400
+
+render:
+  enabled: false
+  chromium_executable: /bin/false
+  concurrency: 1
+
+output:
+  root: /var/lib/streamslice/output
+  keep_intermediates: false
+
+runtime:
+  work_dir: /var/lib/streamslice/work
+  # The VPS only prepares short source clips; final quality is made on the home PC.
+  ffmpeg_preset: ultrafast
+  ffmpeg_crf: 23
+  source_clip_timeout_seconds: 1800

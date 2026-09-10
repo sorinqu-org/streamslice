@@ -1,0 +1,22 @@
+{
+  "name": "streamslice-remotion",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "render": "remotion render src/index.ts ShortClip",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "latest",
+    "@remotion/media": "^4.0.500",
+    "@remotion/renderer": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "remotion": "latest"
+  },
+  "devDependencies": {
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "typescript": "^5.9.3"
+  }
+}

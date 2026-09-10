@@ -1,0 +1,22 @@
+[Unit]
+Description=CLIProxyAPI for StreamSlice
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/cliproxy
+ExecStart=/opt/cliproxy/cli-proxy-api -config /opt/cliproxy/config.yaml
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/cliproxy/proxy.log
+StandardError=append:/var/log/cliproxy/proxy.log
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/log/cliproxy /root/.cli-proxy-api
+
+[Install]
+WantedBy=multi-user.target

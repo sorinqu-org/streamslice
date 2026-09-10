@@ -1,0 +1,75 @@
+# Default StreamSlice layout: reproduces the geometry that used to be hardcoded
+# in ffmpeg_render.py, byte-for-byte, so switching to the template system does
+# not change any existing output.
+name: classic-split
+description: >
+  Classic split-screen: webcam strip on top, gameplay below, thin black divider.
+  This is the baseline layout every other template is compared against.
+
+canvas:
+  width: 1080
+  height: 1920
+  fps: 60
+
+layouts:
+  # Default layout for most clips: webcam on top, gameplay on bottom.
+  split:
+    bands:
+      - source: webcam
+        height: 0.38
+        fit: cover
+        align_x: 0.5
+        # 0.40 keeps eyes in the upper third instead of dead-center, which
+        # looks more natural once the strip is this short.
+        align_y: 0.40
+        zoom: 1.0
+        track: true
+        # Real webcam boxes in 1080p60 Twitch streams are ~504x282px source
+        # pixels. Cropping ~158px and stretching to 1080 wide turns into
+        # mush well before 2.5x upscale, so blur_fill kicks in past this.
+        max_upscale: 2.2
+        divider_px: 8
+        divider_color: "#000000"
+      - source: gameplay
+        height: 0.62
+        fit: cover
+        align_x: 0.5
+        align_y: 0.5
+        zoom: 1.0
+        track: true
+        max_upscale: 2.5
+        divider_px: 0
+        divider_color: "#000000"
+
+  # Used when the recommendation engine decides the reaction alone carries
+  # the clip (e.g. big emotional beat, no relevant gameplay on screen).
+  webcam_full:
+    bands:
+      - source: webcam
+        height: 1.0
+        fit: cover
+        align_x: 0.5
+        align_y: 0.40
+        zoom: 1.0
+        track: true
+        max_upscale: 2.2
+        divider_px: 0
+        divider_color: "#000000"
+
+  # Used when the gameplay moment matters more than the streamer's face
+  # (e.g. a clean kill, a puzzle solve) and the webcam adds nothing.
+  gameplay_full:
+    bands:
+      - source: gameplay
+        height: 1.0
+        fit: cover
+        align_x: 0.5
+        align_y: 0.5
+        zoom: 1.0
+        track: true
+        max_upscale: 2.5
+        divider_px: 0
+        divider_color: "#000000"
+
+subtitles: {}
+motion: {}

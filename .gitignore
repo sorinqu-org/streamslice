@@ -1,0 +1,65 @@
+# --- Секреты и локальные конфиги -------------------------------------------
+# В репозитории живёт только config/default.yaml. Конфиги конкретных машин
+# содержат пути, токены и настройки окружения, поэтому не коммитятся.
+.env
+.env.*
+!.env.example
+config/*.yaml
+!config/default.yaml
+config/*.local.yaml
+*credentials*.yaml
+*credentials*.json
+client_secrets*.json
+*token*.json
+!package-lock.json
+*.pem
+*.key
+cookies*.json
+
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- Node / Remotion --------------------------------------------------------
+node_modules/
+.remotion/
+
+# --- Артефакты работы конвейера --------------------------------------------
+# Видео и промежуточные файлы весят гигабайты и воспроизводимы из исходников.
+.work/
+graphify-out/
+remotion/public/jobs/
+output/
+downloads/
+*.mp4
+*.mkv
+*.ts
+*.wav
+*.mp3
+*.m4a
+*.srt
+*.ass
+!templates/**/*.ass
+
+# --- Логи и состояние -------------------------------------------------------
+*.log
+.uploaded.json
+*.bak-*
+*.pre-*
+
+# --- Служебное --------------------------------------------------------------
+.agents/
+.codex/
+.build/
+.DS_Store
+
+# Примеры конфигов коммитятся, боевые — нет (см. правило config/*.yaml выше).
+!config/*.example.yaml

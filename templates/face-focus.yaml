@@ -1,0 +1,70 @@
+# Reaction-heavy layout: gives the webcam more screen real estate and a
+# slight extra zoom, for clips where the streamer's face carries the moment
+# (funny reactions, rants, banter) more than the gameplay does.
+name: face-focus
+description: >
+  Bigger webcam (55%) than gameplay (45%), with a light zoom on the face to
+  emphasize reactions. Use for banter, rants and reaction-driven clips.
+
+canvas:
+  width: 1080
+  height: 1920
+  fps: 60
+
+layouts:
+  split:
+    bands:
+      - source: webcam
+        height: 0.55
+        fit: cover
+        align_x: 0.5
+        align_y: 0.40
+        # Small extra zoom pulls in a bit tighter on the face without
+        # requiring a bigger source crop (which would need more upscale).
+        zoom: 1.08
+        track: true
+        # Webcam gets nearly half the frame here, so the crop is smaller
+        # relative to source resolution and tolerates more upscale before
+        # turning to mush.
+        max_upscale: 2.2
+        divider_px: 8
+        divider_color: "#000000"
+      - source: gameplay
+        height: 0.45
+        fit: cover
+        align_x: 0.5
+        align_y: 0.5
+        zoom: 1.0
+        track: true
+        max_upscale: 2.5
+        divider_px: 0
+        divider_color: "#000000"
+
+  webcam_full:
+    bands:
+      - source: webcam
+        height: 1.0
+        fit: cover
+        align_x: 0.5
+        align_y: 0.40
+        zoom: 1.08
+        track: true
+        max_upscale: 2.2
+        divider_px: 0
+        divider_color: "#000000"
+
+  gameplay_full:
+    bands:
+      - source: gameplay
+        height: 1.0
+        fit: cover
+        align_x: 0.5
+        align_y: 0.5
+        zoom: 1.0
+        track: true
+        max_upscale: 2.5
+        divider_px: 0
+        divider_color: "#000000"
+
+subtitles: {}
+motion: {}
