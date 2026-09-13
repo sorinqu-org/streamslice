@@ -46,6 +46,16 @@ def list_models(config: dict[str, Any], timeout: float = 3) -> list[str]:
 
 def start_proxy(config: dict[str, Any]) -> None:
     proxy = config["proxy"]
+    if not proxy.get("binary"):
+        # The proxy runs on another machine (see proxy.base_url), typically
+        # reached over an SSH tunnel. Trying to launch a local binary here would
+        # fail with a misleading "executable not found" instead of telling the
+        # operator that the tunnel is down.
+        raise ProxyError(
+            f"CLIProxyAPI at {proxy.get('base_url')} is unreachable and no local "
+            "binary is configured (proxy.binary is empty). If it runs on another "
+            "host, check the SSH tunnel."
+        )
     binary = require_binary(proxy["binary"])
     config_file = Path(proxy["config"]).expanduser().resolve()
     work_dir = Path(proxy["working_dir"]).expanduser().resolve()

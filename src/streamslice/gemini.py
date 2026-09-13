@@ -28,7 +28,21 @@ def _provider_settings(config: dict[str, Any], provider_name: str) -> dict[str, 
     settings = dict(providers.get(provider_name) or {})
     if provider_name == DEFAULT_PROVIDER:
         proxy = config["proxy"]
-        settings.setdefault("base_url", proxy["base_url"])
+        # The endpoint is spelled twice: proxy.base_url (which also governs the
+        # health check and auto-start) and providers.cliproxy.base_url (which is
+        # what requests actually use). The alias wins here, so a mismatch sends
+        # traffic somewhere the health check never looked. Say so instead of
+        # failing later with a bare connection refused.
+        alias_url = str(settings.get("base_url") or "").strip()
+        proxy_url = str(proxy["base_url"]).strip()
+        if alias_url and proxy_url and alias_url != proxy_url:
+            LOGGER.warning(
+                "providers.cliproxy.base_url (%s) differs from proxy.base_url (%s); "
+                "requests go to the former",
+                alias_url,
+                proxy_url,
+            )
+        settings.setdefault("base_url", proxy_url)
         settings.setdefault("api_key_env", proxy["api_key_env"])
     return settings
 
